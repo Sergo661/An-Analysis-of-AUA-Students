@@ -1,0 +1,480 @@
+---
+title: "Analysis of AUA Students"
+author:
+- Khoren Movsisyan Sergo Poghosyan, Areg Hovakimyan
+- Ararat Kazarian, Edgar Oganesian
+output:
+  pdf_document:
+    fig_caption: yes
+    toc: yes
+    latex_engine: xelatex
+  html_document:
+    toc: yes
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(readr)
+library(lubridate)
+library(corrplot)
+library(readxl)
+library(scales)
+library(ggExtra)
+library(GGally)
+```
+
+\newpage
+
+# Overview
+
+  This paper presents an in-depth analysis of student trends at the American University of Armenia. AUA is the leading Armenian University, widely considered the best one. We will focus on exploring patterns, understanding gender distribution, and financial aid reception, along with assessing academic performance through standardized GPA metrics. By analyzing these diverse aspects, the paper aims to uncover significant trends and insights that could inform future academic policies and student support strategies at the university.
+
+# Research Methodology
+
+  In this study, we employ a quantitative research methodology to analyze the trends and patterns among students at the American University of Armenia (AUA). For the analysis of student trends at the American University of Armenia, the data was provided by the institution's Research department. Our primary tool for data analysis was R, chosen for its robust capabilities in handling and visualizing complex datasets. We heavily used ggplot2 due to its powerful and flexible graphical capabilities.
+  
+  In designing this report, we gave a special consideration to the color scheme. These colors leverage the unique properties of tertiary colors. There is contrast and also a continuity between the visuals, which complement each other harmoniously. This enhances the clarity and readability, making the reading process more enjoyable to the eye. The tertiary colors selected—the specific shades of blue and yellow—also create a sense of familiarity, as they have been inspired by the colors of the American University of Armenia. We are confident that this deliberate design not only enhances visual appeal but also establishes a visual connection with the institution represented by the provided data, drawing inspiration from the distinctive blue and yellow hues associated with the American University of Armenia.
+
+# Data Description
+
+Let us examine the dataset provided by the research department of AUA. The data set that we have consists of information of more than 2700 students from 2013 - 2020. Here is the list of columns in the dataset that was provided:
+
+1. Student ID - a numeric code assigned to a student upon enrollment.
+
+2. FirstEnrolled_MajorCode - the major that a student was first enrolled in.
+
+3. College - shows the majors belonging to each college.
+
+4. FincialAid_Received_AtLeast_Once - represents a binary variable where:
+  A value of 1 indicates that the student has received financial aid at least once.
+  A value of 0 indicates that the student has not received financial aid at all.
+
+5. FirstEnrolled_Year - each entry corresponds to the year in which a student initially enrolled in the institution.
+
+6. Gender- contains information about the gender of students.
+
+7. School_GPA - each entry corresponds to the GPA of a student at the school level. Please note that the "School_GPA" column has been standardized to a range from zero to five. Filters applied to the fields that yield a row count of five or fewer have been excluded from the dataset due to student identification concerns.
+
+8. RoA (Republic of Armenia)- represents a binary variable where:
+  A value of 1  represents Armenian citizenship.
+  A value of 0 represents non-Armenian citizenship.
+
+9. FirstYear_CGPA- is applicable to all individuals, not just those who have graduated or been dismissed/withdrawn.
+
+10. All_CGPA- all cumulative GPA - cumulative GPA is applicable to individuals who have completed their academic program or, alternatively, those who have left the program due to dismissal or withdrawal. 
+
+It is important to know that we have incomplete data for the Data Science and Engineering majors, since they are relatively new. Also, we do not have final cumulative GPA of 2017-2020 years, as in our data they did not graduated yet. 
+
+# Hypothesis 
+
+We will explore student trends in the American University of Armenia through four main hypothesis that we wanted to test: 
+
+1. Major related GPA difference. Our first hypothesis states that majors which do not have math courses have a higher average GPA. This is based on the assumption that math courses may present greater challenges to students, potentially impacting overall GPA. For this we will analyze how GPA varies across majors. 
+
+2. Relation of Gender and Academic Performance. The second hypothesis suggests that male students outperform female students in academic performance, especially in STEM-related majors. This will be tested by comparing the GPAs of Male and Female students.
+
+3. Financial Aid influence on Student GPA. Our third hypothesis says that on average students who receive financial aid have higher GPA than students who do not receive financial aid. First, we will look the number of students by major and year to ensure that the distribution of financial aid is relatively equal, in order to avoid misleading information. Then, we will compare them by their mean GPA, and decide whether our hypothesis was right or wrong. 
+
+4. International Students distribution in AUA. The fourth hypothesis is that AUA, being an American institution in Armenia, attracts a substantial number of international students. We will examine the composition of the student body, particularly focusing on the proportion of international students.
+
+\newpage
+
+# Analysis
+
+Let us move on to our analysis of the dataset. We will start with general plots to understand AUA student distribution better.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# Load the data
+data <- read_excel("DS_student_request.xlsx")
+data <- data %>% filter(!is.na(FirstYear_CGPA))
+data$FirstYear_CGPA <- as.numeric(data$FirstYear_CGPA)
+data <- data %>% filter(is.na(All_CGPA) | All_CGPA >= 2.0)
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.cap='Total number of AUA students by year'}
+ggplot(data, aes(x = as.factor(FirstEnrolled_Year))) +
+  geom_line(stat = "count", group = 1, color = "blue") +
+  geom_point(stat = "count", size = 3, color = "blue") +
+    geom_text(stat = "count", aes(label = ..count..),
+            vjust = -1.4, hjust = 0.5, color = "black", size = 3) +
+  labs(title = "Total Number of AUA Students Over the Years",
+       x = "Year",
+       y = "Total Count") +
+  theme_minimal()+
+  theme(axis.title = element_blank(),
+          plot.title = element_text(hjust = 0.5),
+        axis.text.y = element_blank())+
+  ylim(0,550)
+```
+
+Figure 1 is a line plot showing the number of students admitted per year at AUA. We see that the average is about 340 students per year. However, one thing to note here is that the number of students accepted in 2018 decreased. There could be several possible reasons for this. Firstly, the Velvet Revolution took place in 2018, of which high school students became a significant part. Secondly, this was the year Karin Markides became president of the AUA. Perheps, low acceptance for 2018 was her decision. Finally, we cannot rule out that it was simply AUA's random selection process that somehow led to a decrease in the number of students accepted that year.
+
+\newpage
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.cap='Gender Distribution of AUA students over all year'}
+gender_data <- data %>%
+  count(Gender) %>%
+  mutate(freq = n / sum(n))
+
+ggplot(gender_data, aes(x = "", y = freq, fill = Gender)) +
+  geom_bar(stat = "identity", width = 1) +
+  geom_text(aes(label = percent(freq)),
+            position = position_stack(vjust = 0.5),  # Adjust vjust as needed
+            color = "black", size = 6) +  # Adjust color and size as needed
+  coord_polar("y") +
+  theme_void() +
+  labs(fill = "Gender", title = "Gender Distribution") +
+  scale_fill_manual(values = c("#FFDE00", "#4342D9")) +
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+Figure 2 illustrates the gender distribution of a particular group, showing that 62% of the individuals are female and 38% are male. The chart clearly indicates a greater proportion of females in the population being studied.
+
+Now let's dive deeper and see weather this distribution stays the same over the years
+
+\newpage
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.cap='Gender Distribution of AUA students by each year'}
+ggplot(data, aes(x = as.factor(FirstEnrolled_Year), fill = Gender)) +
+  geom_bar(position = position_dodge(width = 0.9), color = "black") +
+  geom_text(stat = "count", aes(label = ..count..),
+            position = position_dodge(width = 0.8), vjust = -0.2) +
+  labs(title = "Number of AUA Students by Gender and Year", x = "Year", y = "Count") +
+  scale_fill_manual(values = c("Male" = "#4342D9", "Female" = "#FFDE00")) +
+  theme_minimal()+
+  theme(axis.text.y = element_blank(),
+        axis.title = element_blank(),
+        plot.title = element_text(hjust = 0.5))
+
+```
+
+The Figure 3 displays the number of students at the American University of Armenia (AUA) by gender across different years, from 2013 to 2020. Each pair of bars represents a year, with female students depicted in yellow and male students in blue. Above each bar, the actual number of students in that group is displayed. The plot indicates that the female student population at AUA has been consistently higher than the male population throughout the given years.
+
+Now let's check whether the gender distribution stays the same in all the colleges at AUA. More specifically, is the number of female students higher than the male students in all the colleges, or there is a college where male students dominate?
+
+\newpage
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.cap='Number of Enrolled Students by Year, College and Gender'}
+student_counts <- data %>%
+  filter(Gender %in% c('Male', 'Female')) %>%  
+  group_by(FirstEnrolled_Year, College, Gender) %>%
+  summarise(Count = n_distinct(`Student ID`)) %>%
+  ungroup()
+
+ggplot(student_counts, aes(x = FirstEnrolled_Year, y = Count, color = Gender)) +
+  geom_point()+
+  geom_line() +
+  facet_wrap(~ College) +
+  theme_minimal() +
+  labs(x = "Year of Enrollment", y = "", title = "Number of Enrolled Students by Year, College and Gender", color = "Gender") +
+  scale_color_manual(values = c("Male" = "#4342D9", "Female" = "#FFDE00")) +
+  theme(text = element_text(size = 12),
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        axis.title.x = element_blank())
+
+```
+
+
+Figure 4 presents a combination of a scatter plot and a line plot illustrating the annual enrollment at the American University of Armenia based on year, college, and gender. Notably, it shows a sharp drop in student enrollment across all colleges from 2016 to 2018, followed by a significant increase in 2019. The plot also reveals the gender distribution in each college.
+
+In the College of Business and Economics (CBE), there's a notably higher number of female students, with an even more significant difference in the College of Humanities and Social Sciences (CHSS). However, in the College of Science and Engineering (CSE), there are slightly more male students than females.
+
+\newpage
+
+After forming a general idea about the dataset we move to a more thorough and targeted analysis of the data in order to check our hypothesis.
+
+First of all let's have a look to the first year GPA distribution across all the majors at AUA.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.cap='First Year GPA Distribution by Major'}
+data <- data %>% filter(is.na(All_CGPA) | All_CGPA >= 2.0)
+
+ggplot(data, aes(x = FirstEnrolled_MajorCode, y = FirstYear_CGPA)) +
+  geom_boxplot(outlier.colour = "#4342D9", colour = "#4342D9") +
+  stat_summary(fun = mean, geom = "point", shape = 18, size = 3, color = "red", 
+               position = position_dodge(width = 0.75)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "First Year GPA Distribution by Major", x = "Major", y = "First Year CGPA") +
+  theme_minimal() +
+  theme(axis.title = element_blank(), plot.title = element_text(hjust = 0.5))
+```
+
+The box plots in Figure 5 unveales thereveal the distribution of first-year GPA across all majors at AUA. The red dots enclosed within the boxplots signify the mean GPA for students within each respective major. The analysis of the figure reveals that BAEC students, followed by BSDS students, have the highest GPAs among their counterparts in other majors. On the other hand, BSCS and BSES students demonstrate the greatest variance in GPAs. Notably, BSES students exhibit the lowest mean GPA, equivalent to the median, suggesting a symmetrical distribution of GPAs. Thus, the above boxplot contributes to our first hypothesis that majors which do not have math courses (e.g. BAEC) have a higher average GPA.
+
+\newpage
+
+Let us now conduct a focused examination of the GPA distribution within two majors—one devoid of math classes and the other characterized by a substantial inclusion of such classes. For this comparative analysis, we will consider the BAEC program, which does not require any math classes, and the BSCS program, which incorporates a significant number of them.
+
+```{r message=FALSE, warning=FALSE, fig.cap='First Year CGPA Distribtuion by Major'}
+filtered_data <- data %>% 
+  filter(FirstEnrolled_MajorCode %in% c("BSCS", "BAEC"))
+
+ggplot(filtered_data, aes(x = FirstEnrolled_MajorCode, y = FirstYear_CGPA, fill = FirstEnrolled_MajorCode)) +
+  geom_violin() +
+  labs(title = "First Year CGPA Distribution by Major", 
+       x = "First Enrolled Major Code", 
+       y = "First Year CGPA",
+       fill = 'Major') +
+  theme_minimal() +
+  theme(axis.title = element_blank(),
+        plot.title = element_text(hjust = 0.5),
+        legend.position = "none") +
+  scale_fill_manual(values = c("BAEC" = "#4342D9", "BSCS" = "#FFDE00"))
+```
+
+The above plot (Figure 6) is a violin plot that helps to understand the GPA distribution of the students in BAEC and BSCS programs. As it suggests, the distribution of the GPAs of BAEC students is left-skewed meaning that most of the students have high GPAs. Specifically, it can be seen that most of the BAEC students have GPAs between 3 and 4.
+
+On the other hand, the violin plot for the BSCS major indicates a somewhat uniform distribution, meaning that there is a more or less equal number of students with GPAs from 2 to 4 and a considerable number of students with GPAs between 1 and 2. The above violin plot, again, contributes to our major related GPA difference hypothesis (hypothesis 1).
+
+To sum up, using diverse visualization techniques we concluded that our first hypothesis concerning the academic major-related GPA difference is most probably correct. That is, majors which do not have math courses have a higher average GPA. This is based on the assumption that math courses may present greater challenges to students, potentially impacting overall GPA. For this, we will analyze how GPA varies across majors.
+
+\newpage
+
+Now let's move on and check our second hypothesis about the relation of gender and academic performance. As we already mentioned, our second hypothesis suggests that male students outperform female students in academic performance.
+
+First of all, we want to understand how cumulative GPA differs from college to college. Hence, let's have a look at the figure 7 below.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.cap='Mean Cumulative GPA by Collage 2013-2016'}
+ggplot(data, aes(x = College, y = All_CGPA)) +
+  geom_bar(stat = "summary", fun = "mean", position = "dodge", color = "black", fill = "#4342D9") +
+  geom_text(stat = "summary", aes(label = sprintf("%.2f", ..y..)), position = position_dodge(width = 0.9), vjust = -0.5) +
+  labs(title = "Mean Cumulative GPA by College 2013-2016",
+       x = "College",
+       y = "Mean Cumulative GPA") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        plot.title = element_text(hjust = 0.5),
+        axis.title = element_blank(),
+        axis.text.y = element_blank())
+```
+
+Figure 7 represents the mean cumulative GPA by college for 2013-2016. As we see, the College of Business and Economics has the highest mean GPA of 3.27. In second place is the College of Humanities and Social Sciences with a mean GPA of 3.24. In the last place is the College of Science and Engineering with a relatively low mean GPA of 3.03. We assume that CSE has the lowest GPA due to the overwhelming workload. However, to understand the difference between male and female mean GPA, we need an additional plot. Thus, let's move to Figure 8.
+
+\newpage
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.cap='Mean Cumulative GPA by College and Gender 2013-2016'}
+
+ggplot(data, aes(x = College, y = All_CGPA, fill = Gender)) +
+  geom_bar(stat = "summary", fun = "mean", position = "dodge", color = "black") +
+  geom_text(stat = "summary", aes(label = sprintf("%.2f", ..y..)), position = position_dodge(width = 0.9), vjust = -0.5) +
+  labs(title = "Mean Cumulative GPA by College and Gender 2013-2016",
+       x = "College",
+       y = "Mean Cumulative GPA") +
+  scale_fill_manual(values = c("Male" = "#4342D9", "Female" = "#FFDE00")) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        plot.title = element_text(hjust = 0.5),
+        axis.title = element_blank())
+
+```
+
+Figure 8 helps us to understand the male and female mean GPA differences among colleges. In every college, female students have a higher mean cumulative GPA than males. While female mean cumulative GPA ranges from 3.2 - 3.36 among colleges, male cumulative GPA ranges from 2.9 - 3.13. This gives some insights into our third hypothesis. Finally, let's have a look at the bar plot below (Figure 9) to see the overall CGPA difference by gender.
+
+\newpage
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.cap='Comparison of CGPA by Gender'}
+data_summary <- data %>%
+  group_by(Gender) %>%
+  summarize(Total_CGPA = sum(All_CGPA, na.rm = TRUE),
+            Average_CGPA = mean(All_CGPA, na.rm = TRUE))
+
+# Create the plot
+ggplot(data_summary, aes(x = Gender, y = Total_CGPA, fill = Gender)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = round(Average_CGPA, 2)), vjust = -0.5, size = 4) +
+  scale_fill_manual(values = c("Male" = "#4342D9", "Female" = "#FFDE00")) +
+  labs(title = "Comparison of CGPA by Gender (2013-16)",
+       x = NULL,
+       y = "Sum of CGPA") +
+  theme_minimal() +
+  theme(legend.position = "none",
+        axis.title.y = element_blank(),
+        axis.line.y = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),plot.title = element_text(hjust = 0.5, vjust = 2))
+```
+
+Figure 9 represents a bar plot of cumulative GPA by gender. Female students are depicted in yellow and male students in blue. The height of each bar indicates the number of students in that particular gender group. Above each bar the mean CGPA is demonstrated. As can be noticed the mean CGPA of females is 3.33 and the mean CGPA of male students is 3.03. Thus female students have a CGPA of 0.3 or 10% higher than male students, which, doesn't contribute to our hypothesis, indicating a need for further analysis.
+
+Thus, let's dive deeper into this analysis and see whether the mean GPA of female students is higher in all majors compared to the one of male students. Or more formally, let's check whether male students have better performance in let's say math or STEM classes compared to females.
+
+\newpage
+
+In order to check the assumption above, we will take a look to the boxplot of cumulative GPA (CGPA) by major and gender below (Figure 10).
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.cap='Box Plot of Cumulative GPA (CGPA) by Major and Gender'}
+data3 <- data %>% filter(!is.na(FirstYear_CGPA), as.factor(FirstEnrolled_Year) %in% c("2013", "2014", "2015", "2016"))
+
+mean_gpas <- data3 %>%
+  group_by(FirstEnrolled_Year) %>%
+  summarise(mean_CGPA = mean(All_CGPA, na.rm = TRUE))
+
+data3 <- merge(data3, mean_gpas, by = "FirstEnrolled_Year")
+
+ggplot(data3, aes(x = FirstEnrolled_MajorCode, y = All_CGPA, fill = Gender)) +
+  geom_boxplot(outlier.shape = NA) +  
+  geom_hline(aes(yintercept = mean_CGPA), color = "red", linetype = "dashed") +  # Add mean GPA line
+  labs(title = "Box Plot of Cumulative GPA by Major and Gender (2013-16)",
+       x = "Major",
+       y = "Cumulative GPA", fill = "") +
+  scale_fill_manual(values = c("Male" = "#4342D9", "Female" = "#FFDE00")) +
+  facet_wrap(~ as.factor(FirstEnrolled_Year), ncol = 6) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        axis.title = element_blank(),
+        plot.title = element_text(hjust = 0.5),
+        legend.position = "bottom")
+```
+
+In the figure above, each box plot shows the distribution of Cumulative Grade Point Averages (CGPAs) within specific major and gender groups (depicted in yellow for females and blue for males). The red dotted lines indicate the mean CGPA for the respective year. Notably, across all instances, irrespective of the major under consideration, female students consistently exhibit the highest CGPAs, evidenced by the consistently higher median CGPA (represented by the horizontal line within each box plot) for female students. Consequently, Figure 8 serves to contradict our initial hypothesis.
+
+In conclusion, our second hypothesis proposing that male students outperform female students in academic performance is not supported by the data. The bar plot in Figure 7 and a detailed examination of CGPAs across majors and gender in Figure 8 indicates that contrary to our initial hypothesis, female students, on average, outperform male students in terms of CGPA across various majors.
+
+\newpage
+
+Let's move to our third hypothesis concerning the influence of financial aid on student GPA. First of all, let's look at the number of students by major and year to ensure that the distribution of financial aid is relatively equal, in order to avoid misleading information.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.cap='Number of AUA Students by Major and Financial Aid'}
+ggplot(data, aes(x = FirstEnrolled_MajorCode, fill = factor(FincialAid_Received_AtLeast_Once))) +
+  geom_bar(position = "stack", color = "black") +
+  geom_text(stat = "count", aes(label = ..count..),
+            position = position_stack(vjust = 0.5), color = "white", size = 2) +
+  labs(title = "Number of AUA Students by Major and Financial Aid",
+       x = "Major",
+       y = "Count") +
+  scale_fill_manual(values = c("0" = "#FFDE00", "1" = "#4342D9"),
+                    name = "Group",
+                    labels = c("No Aid", "Aid")) +
+  facet_wrap(~ as.factor(FirstEnrolled_Year), scales = "free_y", ncol = 4) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        strip.text = element_text(size = 10, vjust = -2),
+        axis.title = element_blank(),
+        plot.title = element_text(hjust = 0.5))
+```
+
+The Figure 11 represents number of AUA students by major and financial aid for all years. Just from the colors, we can clearly see that for every year, and for every major about the half of the students received financial aid. Of course, there are some exceptions, for example, for BSDS in 2018, we have only 9 students and all of them received financial aid. The opposite goes for BSES in 2019, there were 10 students and none of them received financial aid. Now, having more or less equally distribution of financial aid over years and majors, we can move on to Figure 12 in which we will talk about our third hypothesis, that is whether students who receive financial aid, study better.
+
+\newpage
+
+Below, we compare the mean GPA of students receiving financial aid and not receiving it by their mean GPA, and decide whether our hypothesis was right or wrong.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.cap='Mean GPA of AUA Students by Major and Financial Aid'}
+
+filtered_data <- data %>%
+  filter(FirstEnrolled_Year >= 2017)
+
+# Create a summary data frame with mean GPA values for the filtered data
+summary_data <- filtered_data %>%
+  group_by(FirstEnrolled_MajorCode, FincialAid_Received_AtLeast_Once, FirstEnrolled_Year) %>%
+  summarise(mean_gpa = mean(FirstYear_CGPA), count = n())
+
+# Plotting
+ggplot(filtered_data, aes(x = FirstEnrolled_MajorCode, 
+                          fill = factor(FincialAid_Received_AtLeast_Once))) +
+  geom_bar(position = "stack", color = "black") +
+  geom_text(data = summary_data, aes(x = FirstEnrolled_MajorCode,
+                                     label = sprintf("%.2f", mean_gpa),
+                                     y = count,
+                                     group = factor(FincialAid_Received_AtLeast_Once)),
+            position = position_stack(vjust = 0.5), color = "white", size = 2) +
+  labs(title = "Mean GPA of AUA Students by Major and Financial Aid",
+       x = "Major",
+       y = "Count") +
+  theme_minimal() +
+  scale_fill_manual(values = c("0" = "#FFDE00", "1" = "#4342D9"),
+                    name = "Financial Aid",
+                    labels = c("No Aid", "Aid")) +
+  facet_wrap(~ as.factor(FirstEnrolled_Year), scales = "free_y", ncol = 6) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        strip.text = element_text(size = 10, vjust = -2),
+        axis.title = element_blank(),
+        plot.title = element_text(hjust = 0.5))
+```
+
+Figure 12 helps us to decide whether our third hypothesis about the students who have financial aid study better. From Figure 11 we determined that we more or less have an equal distribution of financial aid, so we can proceed with our third hypothesis without any hesitation that our conclusions can be misleading. For the sake of the example, we took 2017-2020 to have all majors compared. As we can see, for every year and for every major students who receive financial aid, have higher GPAs than students who do not receive. The only exception is BSES students in 2020, even though this can be due to the very low number of engineering students in that year (19). Hence, we can confidently conclude that our third hypothesis about students who receive financial aid outperforms students who do not receive financial aid.
+
+\newpage
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.cap='Mean Change Between First Year and Final CGPA (2013-2016)'}
+df <- data %>% filter(All_CGPA != FirstYear_CGPA)
+df <- df %>%mutate(Change_Statement = ifelse(All_CGPA > FirstYear_CGPA, "Increase", "Decrease"))
+df1 <- df %>%
+  group_by(FirstEnrolled_MajorCode, Change_Statement) %>%
+  summarise(
+    Mean_Abs_Difference = sum(abs(FirstYear_CGPA - All_CGPA)) / n(),
+    Count = n()
+  )
+
+ggplot(df, aes(x = FirstEnrolled_MajorCode, fill = Change_Statement)) +
+  geom_bar(position = "dodge") +
+  geom_text(data = df1, aes(x = FirstEnrolled_MajorCode, y = Count, label  = sprintf("%.3f", Mean_Abs_Difference)),
+            position = position_dodge(width = 0.9), vjust = -0.5) +
+  theme_minimal() +
+scale_fill_manual(values = c("Increase" = "#4342D9", "Decrease" = "#FFDE00"), labels = c("Decrease", "Increase")) +
+  theme(axis.title = element_blank(), plot.title = element_text(hjust = 0.7)) +
+  labs( fill = "Change", title = "Mean Change Between First Year and Final CGPA (2013-2016)")
+```
+
+Figure 13 represents the mean change between the first-year cumulative GPA and the final cumulative GPA. Note that the plot shows the results for 2013-2016, as our dataset ranges from 2013-2020 and students do not have final cumulative GPA from 2017 in our data. For this case, we have only three majors: BAB, BAEC, and BSCS. We can clearly see that the best results have BAB students, particularly, about 500 students on average had their final cumulative GPA increased from the first year by 0.344 points, and a relatively small portion of them decreased on average by 0.170 points. BSCS students on average increased their final cumulative GPA by 0.358 points, while the other half on average decreased their final cumulative GPA by 0.243. The most interesting case is for BAEC students. We see that students on average decreased more than increased, 0.229 and 0.189 respectively. We assumed this happened because BAEC students already have high GPAs, as we discussed before, and in that case, it is relatively easier to decrease rather than decrease.
+
+\newpage
+
+Moving to our fourth and last hypothesis regarding international students distribution in AUA we will examine the pie chart of the citizenship of the students.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.cap='Students Distribution by Citizenship'}
+data_cleaned <- na.omit(data)
+
+data_labeled <- data_cleaned %>%
+  mutate(RoA = case_when(
+    RoA == 1 ~ "Armenia",
+    RoA == 0 ~ "Foreign",
+    TRUE ~ as.character(RoA) # Handles any other unexpected values
+  ))
+
+roa_counts <- data_labeled %>%
+  group_by(RoA) %>%
+  summarize(Count = n())
+
+ggplot(roa_counts, aes(x = "", y = Count, fill = RoA)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar(theta = "y") + 
+  scale_fill_manual(values = c("Armenia" = "#FFDE00", "Foreign" = "#4342D9")) +
+  labs(title = "Students Distribution by Citizenship",
+       x = NULL,
+       y = NULL,
+       fill = "Citizenship") + 
+  theme_minimal() +
+  theme(panel.grid = element_blank(),
+        axis.title = element_blank(),
+        axis.line = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks.y = element_blank(),
+        plot.title = element_text(hjust = 0.5, vjust = -0.8))
+```
+
+The figure 14 demonstrates the pie chart of the international student distribution at the American University of Armenia. The yellow pie stands for Armenian students and the blue pie for international students. Notably, the number of students with foreign citizenship is significantly smaller (only 2%) compared to the number of students having Armenian citizenship. Thus, our fourth hypothesis, stating that being an American institution in Armenia, the American University of Armenia attracts a substantial number of international students, is rejected by our data.
+
+\newpage
+
+# Conclusion and Recomendations
+
+In this paper, we thoroughly analyzed the Students' dataset from the American University of Armenia. Here are our key findings:
+
+- Women study better than men. Not just overall but in every major at AUA
+
+- There are almost no international students in AUA. So, we should not trust people who say otherwise.
+
+- Majors that do not require any STEM courses, in the case of AUA, specifically the EC major, have a higher average GPA than majors that are STEM-focused. We believe that it is due to the lack of final and midterm exams in most non-math classes.
+
+- The effect of financial aid on GPA is significant. On average students who have received financial aid at least once have a higher GPA than those students who did not.
+
+We would like to offer several recommendations to the American University of Armenia (AUA) based on our analysis. We recommend actively promoting gender diversity, addressing the decline in enrollment in the business major, intensifying efforts to attract international students through targeted advertising, and improving information dissemination to empower students for more robust research endeavors.
